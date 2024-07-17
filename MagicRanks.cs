@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("MagicRanks", "herbs.acab", "1.0.3")]
+    [Info("MagicRanks", "herbs.acab", "1.0.4")]
     [Description("Tracks player playtime and assigns them to specific Oxide groups after reaching certain playtime thresholds.")]
     public class MagicRanks : RustPlugin
     {
@@ -23,20 +23,27 @@ namespace Oxide.Plugins
 
             Config["RewardRanks"] = new Dictionary<string, double>
             {
-                {"rank1", 10.0},
-                {"rank2", 20.0},
-                {"rank3", 30.0}
+                {"vip1", 5.0},
+                {"vip2", 15.0},
+                {"vip3", 25.0}
             };
-            SaveConfig();
         }
 
         private void LoadConfigValues()
         {
+            if (Config["RewardRanks"] == null)
+            {
+                PrintWarning("No configuration file found. Creating default configuration.");
+                LoadDefaultConfig();
+                SaveConfig();
+            }
+
             rewardRanks = Config["RewardRanks"] as Dictionary<string, double>;
             if (rewardRanks == null)
             {
                 PrintError("Failed to load reward ranks from config. Creating default values.");
                 LoadDefaultConfig();
+                SaveConfig();
             }
         }
 
