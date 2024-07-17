@@ -1,3 +1,5 @@
+# Currently updating this as a hotfix broke my code ;(
+
 # MagicRanks
 
 MagicRanks is a Rust plugin that tracks player playtime and assigns them to specific Oxide groups after reaching configurable playtime thresholds.
