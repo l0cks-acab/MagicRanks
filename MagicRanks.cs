@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Oxide.Plugins
 {
-    [Info("MagicRanks", "herbs.acab", "1.0.1")]
+    [Info("MagicRanks", "herbs.acab", "1.0.3")]
     [Description("Awards players by adding them to a group after a specified amount of playtime.")]
     public class MagicRanks : RustPlugin
     {
@@ -20,8 +20,9 @@ namespace Oxide.Plugins
 
         protected override void LoadDefaultConfig()
         {
+            PrintWarning("Creating a new configuration file.");
             Config.Clear();
-            Config["GroupTimes"] = new Dictionary<string, double>
+            Config["GroupTimes"] = new Dictionary<string, object>
             {
                 { "Group1", 5.0 },
                 { "Group2", 10.0 },
@@ -32,7 +33,27 @@ namespace Oxide.Plugins
 
         private void LoadConfigValues()
         {
-            groupTimes = Config.Get<Dictionary<string, double>>("GroupTimes");
+            groupTimes = new Dictionary<string, double>();
+
+            var configData = Config["GroupTimes"] as Dictionary<string, object>;
+            if (configData == null)
+            {
+                PrintWarning("Invalid configuration format. Loading default values.");
+                LoadDefaultConfig();
+                configData = Config["GroupTimes"] as Dictionary<string, object>;
+            }
+
+            foreach (var entry in configData)
+            {
+                if (entry.Value is double hours)
+                {
+                    groupTimes[entry.Key] = hours;
+                }
+                else
+                {
+                    PrintWarning($"Invalid value for group {entry.Key}. Expected a double.");
+                }
+            }
         }
 
         [ChatCommand("magicranks_add")]
