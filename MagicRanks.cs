@@ -1,160 +1,114 @@
 using Oxide.Core;
-using Oxide.Core.Plugins;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("MagicRanks", "herbs.acab", "1.0.3")]
-    [Description("Awards players by adding them to a group after a specified amount of playtime.")]
+    [Info("MagicRanks", "herbs.acab", "1.0.6")]
+    [Description("Tracks player playtime and assigns them to specific Oxide groups after reaching certain playtime thresholds.")]
     public class MagicRanks : RustPlugin
     {
-        private Dictionary<string, double> groupTimes;
-
-        private const string permAdmin = "magicranks.admin";
+        private Dictionary<ulong, double> playerPlaytimes = new Dictionary<ulong, double>(); // Stores player IDs and their total playtimes
+        private Dictionary<ulong, double> sessionStartTimes = new Dictionary<ulong, double>(); // Stores session start times for currently connected players
+        
+        private Dictionary<string, double> rewardRanks = new Dictionary<string, double>
+        
+         // Define reward ranks and thresholds here, you can add/remove ranks too, follow the format.
+        {
+            {"vip1", 5.0}, 
+            {"vip2", 15.0},
+            {"vip3", 25.0}
+        };
+         // I'm too lazy to add a config, and I wanted it as lightweight as possible. If you need help ping me on discord: herbs.acab
 
         private void Init()
         {
-            permission.RegisterPermission(permAdmin, this);
-            LoadConfigValues();
+            LoadPlayerPlaytimes();
         }
 
-        protected override void LoadDefaultConfig()
+        // Load player playtimes from the JSON file
+        private void LoadPlayerPlaytimes()
         {
-            PrintWarning("Creating a new configuration file.");
-            Config.Clear();
-            Config["GroupTimes"] = new Dictionary<string, object>
+            playerPlaytimes = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<ulong, double>>("MagicRanks");
+            if (playerPlaytimes == null)
             {
-                { "Group1", 5.0 },
-                { "Group2", 10.0 },
-                { "Group3", 20.0 }
-            };
-            SaveConfig();
+                playerPlaytimes = new Dictionary<ulong, double>();
+            }
         }
 
-        private void LoadConfigValues()
+        private void OnPlayerInit(BasePlayer player)
         {
-            groupTimes = new Dictionary<string, double>();
-
-            var configData = Config["GroupTimes"] as Dictionary<string, object>;
-            if (configData == null)
+            if (!playerPlaytimes.ContainsKey(player.userID))
             {
-                PrintWarning("Invalid configuration format. Loading default values.");
-                LoadDefaultConfig();
-                configData = Config["GroupTimes"] as Dictionary<string, object>;
+                playerPlaytimes[player.userID] = 0.0;
             }
 
-            foreach (var entry in configData)
+            sessionStartTimes[player.userID] = Time.realtimeSinceStartup; // Record the session start time
+        }
+
+        private void OnPlayerDisconnected(BasePlayer player, string reason)
+        {
+            if (sessionStartTimes.ContainsKey(player.userID))
             {
-                if (entry.Value is double hours)
+                double sessionTime = (Time.realtimeSinceStartup - sessionStartTimes[player.userID]) / 3600.0; // Convert seconds to hours
+                playerPlaytimes[player.userID] += sessionTime;
+                sessionStartTimes.Remove(player.userID);
+                CheckRewards(player);
+            }
+        }
+
+        // Track playtime and update the dictionary
+        private void TrackPlaytime(BasePlayer player)
+        {
+            if (player == null || !player.IsConnected) return;
+
+            double sessionTime = (Time.realtimeSinceStartup - sessionStartTimes[player.userID]) / 3600.0; // Convert seconds to hours
+            playerPlaytimes[player.userID] += sessionTime;
+            sessionStartTimes[player.userID] = Time.realtimeSinceStartup; // Reset session start time
+            CheckRewards(player);
+        }
+
+        // Check if the player qualifies for any rewards based on playtime
+        private void CheckRewards(BasePlayer player)
+        {
+            if (player == null) return;
+
+            foreach (var rank in rewardRanks)
+            {
+                if (playerPlaytimes[player.userID] >= rank.Value && !permission.UserHasGroup(player.UserIDString, rank.Key))
                 {
-                    groupTimes[entry.Key] = hours;
-                }
-                else
-                {
-                    PrintWarning($"Invalid value for group {entry.Key}. Expected a double.");
+                    permission.AddUserGroup(player.UserIDString, rank.Key);
+                    PrintToChat(player, $"Congratulations! You have been promoted to {rank.Key} for playing {rank.Value} hours.");
                 }
             }
         }
 
-        [ChatCommand("magicranks_add")]
-        private void CmdMagicRanksAdd(BasePlayer player, string command, string[] args)
+        // Save player playtimes to the JSON file
+        private void OnServerSave()
         {
-            if (!IsAdmin(player)) return;
-            if (args.Length != 2) 
-            {
-                player.ChatMessage("Usage: /magicranks_add [group] [hours]");
-                return;
-            }
-
-            string group = args[0];
-            if (!double.TryParse(args[1], out double hours))
-            {
-                player.ChatMessage("Invalid hours value. Please enter a valid number.");
-                return;
-            }
-
-            groupTimes[group] = hours;
-            SaveConfig();
-            player.ChatMessage($"Group {group} set to {hours} hours.");
+            Interface.Oxide.DataFileSystem.WriteObject("MagicRanks", playerPlaytimes);
         }
 
-        [ChatCommand("magicranks_edit")]
-        private void CmdMagicRanksEdit(BasePlayer player, string command, string[] args)
+        private void Unload()
         {
-            if (!IsAdmin(player)) return;
-            if (args.Length != 2) 
-            {
-                player.ChatMessage("Usage: /magicranks_edit [group] [hours]");
-                return;
-            }
-
-            string group = args[0];
-            if (!double.TryParse(args[1], out double hours))
-            {
-                player.ChatMessage("Invalid hours value. Please enter a valid number.");
-                return;
-            }
-
-            if (!groupTimes.ContainsKey(group))
-            {
-                player.ChatMessage($"Group {group} does not exist.");
-                return;
-            }
-
-            groupTimes[group] = hours;
-            SaveConfig();
-            player.ChatMessage($"Group {group} updated to {hours} hours.");
+            OnServerSave();
         }
 
-        [ChatCommand("magicranks_remove")]
-        private void CmdMagicRanksRemove(BasePlayer player, string command, string[] args)
+        // Load player playtimes when the server initializes and set up periodic saving
+        private void OnServerInitialized()
         {
-            if (!IsAdmin(player)) return;
-            if (args.Length != 1)
-            {
-                player.ChatMessage("Usage: /magicranks_remove [group]");
-                return;
-            }
-
-            string group = args[0];
-
-            if (!groupTimes.ContainsKey(group))
-            {
-                player.ChatMessage($"Group {group} does not exist.");
-                return;
-            }
-
-            groupTimes.Remove(group);
-            SaveConfig();
-            player.ChatMessage($"Group {group} removed.");
+            LoadPlayerPlaytimes();
+            timer.Every(3600, () => SavePlaytimes());
         }
 
-        [ChatCommand("magicranks_list")]
-        private void CmdMagicRanksList(BasePlayer player, string command, string[] args)
+        // Save playtimes periodically
+        private void SavePlaytimes()
         {
-            if (!IsAdmin(player)) return;
-
-            player.ChatMessage("Current groups and required hours:");
-            foreach (var entry in groupTimes)
+            foreach (var player in BasePlayer.activePlayerList)
             {
-                player.ChatMessage($"{entry.Key}: {entry.Value} hours");
+                TrackPlaytime(player);
             }
-        }
-
-        private bool IsAdmin(BasePlayer player)
-        {
-            if (player == null || !permission.UserHasPermission(player.UserIDString, permAdmin))
-            {
-                player.ChatMessage("You do not have permission to use this command.");
-                return false;
-            }
-            return true;
-        }
-
-        private void SaveConfig()
-        {
-            Config["GroupTimes"] = groupTimes;
-            Config.Save();
+            OnServerSave();
         }
     }
 }
