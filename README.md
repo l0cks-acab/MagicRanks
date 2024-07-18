@@ -1,52 +1,40 @@
-# Currently updating this as a hotfix broke my code ;(
+### MagicRanks
+MagicRanks is a Rust plugin that tracks player playtime and assigns them to specific Oxide groups after reaching certain playtime thresholds. This plugin helps in rewarding players based on their commitment and time spent on the server.
 
-# MagicRanks
+### Features
+- Tracks player playtime in hours.
+- Automatically assigns players to specific Oxide groups based on their playtime.
 
-MagicRanks is a Rust plugin that tracks player playtime and assigns them to specific Oxide groups after reaching configurable playtime thresholds.
-
-## Features
-
-- Track player playtime in hours.
-- Assign players to specific groups based on their playtime.
-- Configurable reward ranks with custom playtime thresholds.
-
-## Installation
-
-1. Download the `MagicRanks.cs` file and place it in your `oxide/plugins` directory.
-2. The plugin will automatically create a default configuration file on first run.
-
-## Configuration
-
-The configuration file (`oxide/config/MagicRanks.json`) allows you to define reward ranks and their corresponding playtime thresholds.
-
-### Default Configuration
-
-```json
+### Customization
+#### Changing Rank Names and Time Needed
+Admins can change the rank names and the time needed to achieve each rank by editing the rewardRanks dictionary in the plugin's source code. Here is the relevant section of the code:
+```c# // Define reward ranks and thresholds directly in the code
+private Dictionary<string, double> rewardRanks = new Dictionary<string, double>
 {
-  "RewardRanks": {
-    "rank1": 10.0,
-    "rank2": 20.0,
-    "rank3": 30.0
-  }
-}
+    {"vip1", 5.0},
+    {"vip2", 15.0},
+    {"vip3", 25.0}
+};
 ```
 
-### Example Custom Configuration
-```json
+To change the rank names or time needed, simply modify the dictionary entries. For example, to add a new rank "vip4" that requires 50 hours of playtime, update the dictionary as follows:
+```c# 
+// Define reward ranks and thresholds directly in the code
+private Dictionary<string, double> rewardRanks = new Dictionary<string, double>
 {
-  "RewardRanks": {
-    "Novice": 5.0,
-    "Experienced": 15.0,
-    "Veteran": 25.0
-  }
-}
+    {"vip1", 5.0},
+    {"vip2", 15.0},
+    {"vip3", 25.0},
+    {"vip4", 50.0}
+};
 ```
-- The keys (Novice, Experienced, Veteran) are the names of the Oxide groups.
-- The values (5.0, 15.0, 25.0) represent the playtime thresholds in hours.
-- You can add or modify ranks as needed.
 
 ### Data Storage
-The plugin saves player playtime data to a file (oxide/data/MagicRanks.json) to persist playtime information across server restarts.
+Player playtime data is stored in a JSON file located in the oxide/data directory. 
 
-### License
-This plugin is released under the MagicServices License.
+`File Location: oxide/data/MagicRanks.json`
+
+- The file contains a dictionary where the keys are player IDs (ulong) and the values are their total playtimes (double) in hours.
+
+### Permissions
+Ensure that the groups specified in the plugin (vip1, vip2, legend, novice, ect) exist in your Oxide permissions system and have the desired permissions set up.
