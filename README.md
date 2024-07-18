@@ -18,8 +18,7 @@ private Dictionary<string, double> rewardRanks = new Dictionary<string, double>
 ```
 
 To change the rank names or time needed, simply modify the dictionary entries. For example, to add a new rank "vip4" that requires 50 hours of playtime, update the dictionary as follows:
-```c# 
-// Define reward ranks and thresholds directly in the code
+```c# // Define reward ranks and thresholds directly in the code
 private Dictionary<string, double> rewardRanks = new Dictionary<string, double>
 {
     {"vip1", 5.0},
