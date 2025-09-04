@@ -1,5 +1,7 @@
 ### MagicRanks
 MagicRanks is a Rust plugin that tracks player playtime and assigns them to specific Oxide groups after reaching certain playtime thresholds. This plugin helps in rewarding players based on their commitment and time spent on the server.
+**Version:** 1.0.6
+**Author:** herbs.acab
 
 ### Features
 - Tracks player playtime in hours.
